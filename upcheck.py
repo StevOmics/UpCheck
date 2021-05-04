@@ -51,10 +51,10 @@ def monitor(site_list,interval=60):
                 ports = default_ports
             for port in ports:
                 if(port in ['443']):
-                    h = "https"
+                    http = "https"
                 else:
-                    h = "http"
-                url = """{}://{}:{}""".format(h,site['url'],port)
+                    http = "http"
+                url = """{}://{}:{}""".format(http,site['url'],port)
                 print("Checking: "+url)
                 down = False
                 try:

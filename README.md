@@ -1,7 +1,6 @@
 # UpCheck
 Check status of websites. Send notification if down.
-
-# Note that this requires the following configuration files to run:
+- Note that this requires the following configuration files to run:
 
 ## sites.json - specify sites to check
 - note that the port array is optional. If not specified, will include default ports 80 & 443

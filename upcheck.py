@@ -5,8 +5,7 @@ import email_alerts
 from func_timeout import func_timeout, FunctionTimedOut , func_set_timeout
 from datetime import datetime
 import argparse
-version = '1'
-
+version = '1.0.0'
 timeout = 5
 
 def load_sites():

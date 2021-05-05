@@ -1,6 +1,9 @@
 import sys
 import requests
 import socket
+import uuid
+import random
+import string
 from icmplib import ping, multiping, traceroute, resolve, Host, Hop
 from time import sleep
 import json
@@ -25,6 +28,10 @@ def load_sites(sites_file="sites.json"):
 def timestamp():
     now = datetime.now()
     return now.strftime("%d/%m/%Y %H:%M:%S")
+
+def getid():
+    return ''.join(random.SystemRandom().choice(string.ascii_uppercase + string.digits) for _ in range(6))
+    # return uuid.uuid1().hex
 
 def minToSec(mins=1):
     return mins*60
@@ -94,7 +101,7 @@ def url_down(url):
         # return res.status_code
         return True
 
-def check_site(site,retries = 1,email=False,auth_file=None,dl_file=None,sites_file=None):
+def check_site(site,retries = 1,email=False,auth_file=None,dl_file=None,sites_file=None,issue=None):
     down = True   
     message = "Alert: An issue was encountered in attempting to connect to the site: "+site['name']
     # message = message + "\nAttempts for this site: "+str(retries)
@@ -108,10 +115,11 @@ def check_site(site,retries = 1,email=False,auth_file=None,dl_file=None,sites_fi
         check_urls = [format_url(site['url'])] #if no ports specified then assume it's already a complete URL
     for check_url in check_urls:
         for attempt in range(1,retries+1):
-            if(retries > 1): message = message + "\n[Error]: Attempt %i of %i for URL: %s"%((attempt),retries,check_url)
-            else:            message = message + "\n[Error]: Unable to connect to URL: %s"%(check_url)
+            if(retries > 1): message = message + "\n[Connection Test]: Attempt %i of %i for URL: %s"%((attempt),retries,check_url)
+            else:            message = message + "\n[Connection Test]: Attempt to connect to URL: %s"%(check_url)
             try:
                 down = url_down(check_url)
+                message = message + "\n[Connection Test]: Connection successful."
                 break
             except FunctionTimedOut:
                 message = message + "\n[Error]: Connection timed out."
@@ -128,8 +136,9 @@ def check_site(site,retries = 1,email=False,auth_file=None,dl_file=None,sites_fi
                 print("Problem connecting to this site. Attempt %i of %i Waiting %i seconds to try again."%((attempt),retries,settings['retry_delay']))
                 sleep(settings['retry_delay'])
     if(down):
-        subject = """[ALERT]Site '{}' is down!""".format(site['name'])
-        message = message+"""\n[Error]: Time was: {}\n""".format(timestamp())
+        if(not issue): issue = getid()
+        subject = """[ALERT:{}] Site '{}' is down!""".format(issue,site['name'])
+        message = message+"""\n[ID:{}] Time reported: {} """.format(issue,timestamp())
         print("Sending alert for this site.")
         print("Message: ")
         print(message)
@@ -138,18 +147,28 @@ def check_site(site,retries = 1,email=False,auth_file=None,dl_file=None,sites_fi
                 send_alert(subject,message,auth_file,dl_file)
             except FunctionTimedOut:
                 print("Unable to send alert (timed out).")
-        return False
+        return issue
     else:
-        return True
+        if(issue):
+            subject = """[ALL-CLEAR:{}] Site '{}' is back up! Closed:[{}]""".format(issue,site['name'])
+            message = message + """\n Issue closed [ID:{}]""".format(issue)
+            if(email): 
+                try:
+                    send_alert(subject,message,auth_file,dl_file)
+                except FunctionTimedOut:
+                    print("Unable to send alert (timed out).")
+        return None
 
 def monitor(site_list=None,interval=None,retries=None,email=False,auth_file=None,dl_file=None):
     if(not auth_file): auth_file = settings['auth_file']
     if(not dl_file): dl_file = settings['dl_file']
     if(not site_list):  site_list = load_sites(settings['sites_file'])
+    for site in site_list:
+        site['issue'] = None
     if(not retries): retries = 1
     if(interval):
         print("Running in continuous mode.")
-        try:
+        try: #I'm including try/except blocks for all email alerts so that the program won't fail if it can't do email
             message = """UpCheck monitoring started at: {} \nThe following sites are being monitored: \n{}\nThis script will send alerts for any observed loss of connectivity.""".format(timestamp(),("\n".join([ "  "+str(i+1)+": "+site['name'] for i,site in enumerate(site_list)])))
             print(message)
             send_alert("UpCheck: Monitoring started",message,auth_file,dl_file)
@@ -157,7 +176,7 @@ def monitor(site_list=None,interval=None,retries=None,email=False,auth_file=None
             print("Unable to send alert (timed out).")
         while(True):
             for site in site_list:
-                check_site(site,retries,email,auth_file,dl_file)
+                site['issue'] = check_site(site=site,retries=retries,email=email,auth_file=auth_file,dl_file=dl_file,issue = site['issue'])
             print("Waiting for %i seconds until next check."%(interval))
             sleep(interval) 
     else:

@@ -24,6 +24,9 @@ def timestamp():
     now = datetime.now()
     return now.strftime("%d/%m/%Y %H:%M:%S")
 
+def minToSec(mins=1):
+    return mins*60
+
 def format_url(url,http="http",port=None):
     url = url.lower()
     if('http' not in url):
@@ -32,7 +35,7 @@ def format_url(url,http="http",port=None):
         url = url + ":"+port
     return url
 
-@func_set_timeout(600) #function times out after 10 minutes for sending all email alerts.
+@func_set_timeout(300) #function times out after 5 minutes for sending all email alerts.
 def send_alert(subject,message,auth_file="env.json",dl_file="dl.json"):
     with open(auth_file) as env:
         creds = json.load(env)
@@ -72,23 +75,22 @@ def check_site(site,retries = 1,email=False,auth_file=None,dl_file=None,sites_fi
     else:
         check_urls = [format_url(site['url'])] #if no ports specified then assume it's already a complete URL
     for check_url in check_urls:
-        for i in range(retries):
-            message = message + "\n[Error]: Attempt %i of %i"%((i+1),retries)
+        for attempt in range(1,retries+1):
+            message = message + "\n[Error]: Attempt %i of %i"%((attempt),retries)
             message = message + " for URL: "+check_url
             try:
                 down = url_down(check_url)
                 break
             except FunctionTimedOut:
-                message = message + "\n[Error]: Connection timed out to URL: "+check_url
+                message = message + "\n[Error]: Connection timed out to URL: "+check_url+"\n"
                 down = True
             except Exception as e:
                 message = message + "\n[Error]: Unable to connect to URL: "+check_url
-                message = message + "\n[Error]:" +str(e)
+                message = message + "\n[Error]:" +str(e)+"\n"
                 down = True
-            if(retries > 1):
-                message = message + "\n"
+            if(down and attempt < retries):
                 print(message)
-                print("Problem connecting to this site. Attempt %i of %i Waiting %i seconds to try again.\n"%((i+1),retries,settings['retry_delay']))
+                print("Problem connecting to this site. Attempt %i of %i Waiting %i seconds to try again."%((attempt),retries,settings['retry_delay']))
                 sleep(settings['retry_delay'])
     if(down):
         subject = """[ALERT]Site '{}' is down!""".format(site['name'])
@@ -105,12 +107,11 @@ def check_site(site,retries = 1,email=False,auth_file=None,dl_file=None,sites_fi
     else:
         return True
 
-def monitor(sites_file=None,interval=None,retries=None,email=False,auth_file=None,dl_file=None):
+def monitor(site_list=None,interval=None,retries=None,email=False,auth_file=None,dl_file=None):
     if(not auth_file): auth_file = settings['auth_file']
     if(not dl_file): dl_file = settings['dl_file']
-    if(not sites_file):  sites_file = settings['sites_file']
+    if(not site_list):  site_list = load_sites(settings['sites_file'])
     if(not retries): retries = 1
-    site_list = load_sites(sites_file)
     if(interval):
         print("Running in continuous mode.")
         try:
@@ -122,6 +123,7 @@ def monitor(sites_file=None,interval=None,retries=None,email=False,auth_file=Non
         while(True):
             for site in site_list:
                 check_site(site,retries,email,auth_file,dl_file)
+            print("Waiting for %i seconds until next check."%(interval))
             sleep(interval) 
     else:
         print("Running once.")
@@ -170,4 +172,5 @@ if(__name__=="__main__"):
             sites_file=args.sites
         else:
             sites_file=settings['sites_file']
-        monitor(sites_file=sites_file,interval=interval,retries=retries,email=True,auth_file=auth_file,dl_file=dl_file)
+        site_list = load_sites(sites_file)
+        monitor(site_list=site_list,interval=interval,retries=retries,email=True,auth_file=auth_file,dl_file=dl_file)

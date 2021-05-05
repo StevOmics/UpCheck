@@ -1,0 +1,14 @@
+[Unit]
+Description=upcheck
+After=network.target
+StartLimitIntervalSec=10
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=10
+User=user1
+ExecStart=[EDIT start command]
+
+[Install]
+WantedBy=multi-user.target

@@ -1,6 +1,7 @@
 import sys
 import requests
 import socket
+from icmplib import ping, multiping, traceroute, resolve, Host, Hop
 from time import sleep
 import json
 import email_alerts
@@ -51,7 +52,7 @@ def send_alert(subject,message,auth_file="env.json",dl_file="dl.json"):
                     print("Sending mail to %s failed."%(contact['name']))
                     print(e)
 
-def ping_server(server, port=None, timeout=settings['timeout']):
+def socket_connection(server, port=None, timeout=settings['timeout']):
     print("Pinging server "+server)
     if(not port):
         url_split = server.split(':')
@@ -72,6 +73,14 @@ def ping_server(server, port=None, timeout=settings['timeout']):
         return False
     else:
         return True
+
+def ping_server(address): #requires sudo
+    try:
+        ping(address)
+        True
+    except Exception as e:
+        print(e)
+        return False
 
 @func_set_timeout(30)
 def url_down(url):
@@ -110,9 +119,9 @@ def check_site(site,retries = 1,email=False,auth_file=None,dl_file=None,sites_fi
             except Exception as e:
                 message = message + "\n[Error]: Unable to connect."
                 message = message + "\n[Error]:" +str(e)
-                ping = ping_server(check_url)
-                if(not ping): message = message + "\n[Error]: Server was unpingable"
-                else: message = message + "\n Ping was successful"
+                # ping = ping_server(check_url)
+                # if(not ping): message = message + "\n[Error]: Server was unpingable"
+                # else: message = message + "\n Ping was successful"
                 down = True
             if(down and attempt < retries):
                 print(message)

@@ -54,8 +54,10 @@ def check_site(site,retries = None,email=False):
             if(port in ['443']): http = 'https'
             else: http = 'http'
             for i in range(retries):
+                check_url = format_url(site['url'],http,port)
+                message = message + "\n[Error]: Attempt "+str(i+1)
+                message = message + " for URL: "+check_url
                 try:
-                    check_url = format_url(site['url'],http,port)
                     down = url_down(check_url)
                     break
                 except FunctionTimedOut:
@@ -65,11 +67,13 @@ def check_site(site,retries = None,email=False):
                     message = message + "\n[Error]: Unable to connect to URL: "+check_url
                     message = message + "\n[Error]:" +str(e)
                     down = True
-                if(down): message = message + "\n[Error]: Attempt "+str(i+1)
     else:
         for i in range(retries):
+            check_url = format_url(site['url'])
+            message = message + "\n[Error]: Attempt "+str(i+1)
+            message = message + " for URL: "+check_url
             try:
-                down = url_down(format_url(site['url']))
+                down = url_down(check_url)
                 break
             except FunctionTimedOut:
                 message = message + "\n[Error]: Connection timed out to URL: "+site['url']
@@ -78,7 +82,6 @@ def check_site(site,retries = None,email=False):
                 message = message + "\n[Error]: Unable to connect to URL: "+site['url']
                 message = message + "\n[Error]: " +str(e)
                 down = True
-            if(down): message = message + "\n[Error]: Attempt "+str(i+1)
     if(down):
         now = datetime.now()
         dt_string = now.strftime("%d/%m/%Y %H:%M:%S")

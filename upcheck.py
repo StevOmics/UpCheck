@@ -138,7 +138,7 @@ def check_site(site,retries = 1,email=False,auth_file=None,dl_file=None,sites_fi
     if(down):
         if(not issue): issue = getid()
         subject = """[ALERT:{}] Site '{}' is down!""".format(issue,site['name'])
-        message = message+"""\n[ID: {}] Time reported: {} """.format(issue,timestamp())
+        message = message+"""\n[ALERT:{}] Current time: {} """.format(issue,timestamp())
         print("Sending alert for this site.")
         print("Message: ")
         print(message)
@@ -150,8 +150,8 @@ def check_site(site,retries = 1,email=False,auth_file=None,dl_file=None,sites_fi
         return issue
     else:
         if(issue):
-            subject = """[ALL-CLEAR:{}] Site '{}' is back up! Closed:[{}]""".format(issue,site['name'])
-            message = message + """\n Issue closed [ID: {}]""".format(issue)
+            subject = """ALL CLEAR! [ALERT:{}] Site '{}' is back up! [ALERT:{}] is closed.""".format(issue,site['name'])
+            message = message + """\n Issue closed [ALERT:{}]""".format(issue)
             if(email): 
                 try:
                     send_alert(subject,message,auth_file,dl_file)

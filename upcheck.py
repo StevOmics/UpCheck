@@ -8,11 +8,16 @@ from datetime import datetime
 import argparse
 version = '1.0.0'
 timeout = 10
+retry_delay = 60
 
 def load_sites():
     with open("sites.json","r") as sites_file:
         site_list = json.load(sites_file)
         return site_list
+
+def timestamp():
+    now = datetime.now()
+    return now.strftime("%d/%m/%Y %H:%M:%S")
 
 def send_alert(subject,message):
     with open("env.json") as env:
@@ -22,7 +27,6 @@ def send_alert(subject,message):
             for contact in dl:
                 print("Sending email alert to: "+contact['name'])
                 email_alerts.send(auth=creds,subject=subject,message=message,destination=contact['email'])
-    print("Sending alert!")
 
 @func_set_timeout(30)
 def url_down(url):
@@ -67,7 +71,9 @@ def check_site(site,retries = None,email=False):
                     message = message + "\n[Error]: Unable to connect to URL: "+check_url
                     message = message + "\n[Error]:" +str(e)
                     down = True
-                sleep(60)
+                print(message)
+                print("Waitng %i seconds to try again."%(retry_delay))
+                sleep(retry_delay)
     else:
         for i in range(retries):
             check_url = format_url(site['url'])
@@ -83,12 +89,13 @@ def check_site(site,retries = None,email=False):
                 message = message + "\n[Error]: Unable to connect to URL: "+site['url']
                 message = message + "\n[Error]: " +str(e)
                 down = True
-            sleep(60)
+            print(message)
+            print("Waitng %i seconds to try again."%(retry_delay))
+            sleep(retry_delay)
     if(down):
-        now = datetime.now()
-        dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
         subject = """[ALERT]Site '{}' is down!""".format(site['name'])
-        message = message+"""\n[Error]: Time was: {}\n""".format(dt_string)
+        message = message+"""\n[Error]: Time was: {}\n""".format(timestamp())
+        print("Sending alert for this site.")
         print("Message: ")
         print(message)
         if(email): send_alert(subject,message)
@@ -99,10 +106,8 @@ def check_site(site,retries = None,email=False):
 def monitor(site_list,interval=None,retries=None,email=False):
     if(not retries): retries = 1
     if(interval):
-        now = datetime.now()
-        dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
         print("Running in continuous mode.")
-        send_alert("UpCheck: Monitoring started","Upcheck monitoring started at: "+dt_string)
+        send_alert("UpCheck: Monitoring started","Upcheck monitoring started at: "+timestamp())
         while(True):
             for site in site_list:
                 check_site(site,retries,email)
@@ -113,18 +118,12 @@ def monitor(site_list,interval=None,retries=None,email=False):
             check_site(site,retries,email)
                 
 if(__name__=="__main__"):
-    print(sys.argv)
     interval = None
     retries = None
     if(len(sys.argv)==2):
         print("Running in single-site mode.")
         url = sys.argv[1]
-        sites=[
-            {
-            "name":url,
-            "url":url
-            }
-        ]
+        sites=[{"name":url,"url":url}]
         monitor(sites,None,1,False)
     else:
         print("Checking sites in specified sites file.")
@@ -135,7 +134,6 @@ if(__name__=="__main__"):
         parser.add_argument("-u", "--url", help="url")
         parser.add_argument("-r", "--retries", help="Number of retries")
         args = parser.parse_args()
-        print(args)
         if(args.test):
             print("Running in test mode")
             exit(0)

@@ -2,15 +2,17 @@
 import sys
 import os
 import re
-
 from smtplib import SMTP_SSL as SMTP       # this invokes the secure SMTP protocol (port 465, uses SSL)
 from email.mime.text import MIMEText
 
 def send(**kwargs):
-    SMTPserver = kwargs['auth']['SMTPserver']
-    sender = kwargs['auth']['sender']
-    USERNAME = kwargs['auth']['USERNAME']
-    PASSWORD = kwargs['auth']['PASSWORD']
+    auth = kwargs['auth']
+    SMTPserver = auth['SMTPserver']
+    USERNAME = auth['USERNAME']
+    PASSWORD = auth['PASSWORD']
+    #fail sender to username if not provided
+    if('sender' in auth): sender = auth['sender']
+    else: sender = auth['USERNAME']
     text_subtype = 'plain'
 
     #compose message

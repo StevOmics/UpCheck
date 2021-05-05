@@ -1,5 +1,6 @@
 import sys
 import requests
+import socket
 from time import sleep
 import json
 import email_alerts
@@ -50,6 +51,28 @@ def send_alert(subject,message,auth_file="env.json",dl_file="dl.json"):
                     print("Sending mail to %s failed."%(contact['name']))
                     print(e)
 
+def ping_server(server, port=None, timeout=settings['timeout']):
+    print("Pinging server "+server)
+    if(not port):
+        url_split = server.split(':')
+        if(len(url_split)==3):
+            server=url_split[0]+url_split[1]
+            port = int(url_split[2])
+        elif(len(url_split)==2):
+            server = url_split[0]
+            port = int(url_split[1])
+        else:
+            port = 80
+    try:
+        socket.setdefaulttimeout(timeout)
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.connect((server, port))
+        s.close()
+    except OSError as error:
+        return False
+    else:
+        return True
+
 @func_set_timeout(30)
 def url_down(url):
     res = requests.get(url,timeout=settings['timeout'])
@@ -64,8 +87,8 @@ def url_down(url):
 
 def check_site(site,retries = 1,email=False,auth_file=None,dl_file=None,sites_file=None):
     down = True   
-    message = "Alert: An issue was encountered in attempting to connect to the following site: "+site['name']
-    message = message + "\nAttempts for this site: "+str(retries)
+    message = "Alert: An issue was encountered in attempting to connect to the site: "+site['name']
+    # message = message + "\nAttempts for this site: "+str(retries)
     if('ports' in site):
         check_urls = []
         for port in site['ports']:
@@ -76,17 +99,20 @@ def check_site(site,retries = 1,email=False,auth_file=None,dl_file=None,sites_fi
         check_urls = [format_url(site['url'])] #if no ports specified then assume it's already a complete URL
     for check_url in check_urls:
         for attempt in range(1,retries+1):
-            message = message + "\n[Error]: Attempt %i of %i"%((attempt),retries)
-            message = message + " for URL: "+check_url
+            if(retries > 1): message = message + "\n[Error]: Attempt %i of %i for URL: %s"%((attempt),retries,check_url)
+            else:            message = message + "\n[Error]: Unable to connect to URL: %s"%(check_url)
             try:
                 down = url_down(check_url)
                 break
             except FunctionTimedOut:
-                message = message + "\n[Error]: Connection timed out to URL: "+check_url+"\n"
+                message = message + "\n[Error]: Connection timed out."
                 down = True
             except Exception as e:
-                message = message + "\n[Error]: Unable to connect to URL: "+check_url
-                message = message + "\n[Error]:" +str(e)+"\n"
+                message = message + "\n[Error]: Unable to connect."
+                message = message + "\n[Error]:" +str(e)
+                ping = ping_server(check_url)
+                if(not ping): message = message + "\n[Error]: Server was unpingable"
+                else: message = message + "\n Ping was successful"
                 down = True
             if(down and attempt < retries):
                 print(message)

@@ -48,7 +48,7 @@ def check_site(site,retries = None,email=False):
     if(not retries):retries = 1
     down = True   
     message = "Status for site: "+site['name']
-    message = message + "\nAttempts: "+str(retries)
+    message = message + "\nAttempts for this site: "+str(retries)
     if('ports' in site):
         for port in site['ports']:
             if(port in ['443']): http = 'https'

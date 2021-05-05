@@ -67,6 +67,7 @@ def check_site(site,retries = None,email=False):
                     message = message + "\n[Error]: Unable to connect to URL: "+check_url
                     message = message + "\n[Error]:" +str(e)
                     down = True
+                sleep(60)
     else:
         for i in range(retries):
             check_url = format_url(site['url'])
@@ -82,6 +83,7 @@ def check_site(site,retries = None,email=False):
                 message = message + "\n[Error]: Unable to connect to URL: "+site['url']
                 message = message + "\n[Error]: " +str(e)
                 down = True
+            sleep(60)
     if(down):
         now = datetime.now()
         dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
@@ -97,7 +99,10 @@ def check_site(site,retries = None,email=False):
 def monitor(site_list,interval=None,retries=None,email=False):
     if(not retries): retries = 1
     if(interval):
+        now = datetime.now()
+        dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
         print("Running in continuous mode.")
+        send_alert("UpCheck: Monitoring started","Upcheck monitoring started at: "+dt_string)
         while(True):
             for site in site_list:
                 check_site(site,retries,email)

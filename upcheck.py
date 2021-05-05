@@ -103,7 +103,7 @@ def url_down(url):
 
 def check_site(site,retries = 1,email=False,auth_file=None,dl_file=None,sites_file=None,issue=None):
     down = True   
-    message = "Alert: An issue was encountered in attempting to connect to the site: "+site['name']
+    message = "Alert for site: "+site['name']
     # message = message + "\nAttempts for this site: "+str(retries)
     if('ports' in site):
         check_urls = []

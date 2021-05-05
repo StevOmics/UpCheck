@@ -171,7 +171,7 @@ def monitor(site_list=None,interval=None,retries=None,email=False,auth_file=None
         try: #I'm including try/except blocks for all email alerts so that the program won't fail if it can't do email
             message = """UpCheck monitoring started at: {} \nThe following sites are being monitored: \n{}\nThis script will send alerts for any observed loss of connectivity.""".format(timestamp(),("\n".join([ "  "+str(i+1)+": "+site['name'] for i,site in enumerate(site_list)])))
             print(message)
-            send_alert("UpCheck: Monitoring started",message,auth_file,dl_file)
+            send_alert("UpCheck Monitoring started",message,auth_file,dl_file)
         except FunctionTimedOut:
             print("Unable to send alert (timed out).")
         while(True):

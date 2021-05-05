@@ -176,6 +176,8 @@ def monitor(site_list=None,interval=None,retries=None,email=False,auth_file=None
             print("Unable to send alert (timed out).")
         while(True):
             for site in site_list:
+                #note that if an issue is reported, the id will be generated, stored in the issue field
+                #and then provided as a parameter. When it is cleared, an all-clear message will be sent
                 site['issue'] = check_site(site=site,retries=retries,email=email,auth_file=auth_file,dl_file=dl_file,issue = site['issue'])
             print("Waiting for %i seconds until next check."%(interval))
             sleep(interval) 

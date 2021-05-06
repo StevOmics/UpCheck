@@ -194,26 +194,28 @@ if(__name__=="__main__"):
         url = sys.argv[1]
         sites=[{"name":url,"url":url}]
         monitor(sites,None,1,False)
+    elif(len(sys.argv)==1):
+        print("""Uptime check version 1.0.0 
+usage: upcheck.py [-h] [-i INTERVAL] [-r RETRIES] [-a AUTH] [-d DL] [-s SITES]
+    optional arguments:
+    -i INTERVAL, --interval INTERVAL interval in MINUTES
+    -r RETRIES, --retries RETRIES Number of retries
+    -a AUTH, --auth AUTH  Auth file
+    -d DL, --dl Email distribution list file
+    -s SITES, --sites SITES Sites list file
+    """)
     else:
-        print("Checking sites in specified sites file.")
+        print("Check site status.")
         parser = argparse.ArgumentParser(description="""Uptime check version {}""".format(settings['version']))
-        parser.add_argument("-V", "--version", help="program version", action="store_true")
-        parser.add_argument("-t", "--test", help="test mode", action="store_true")
-        parser.add_argument("-i", "--interval", help="interval in seconds")
-        parser.add_argument("-u", "--url", help="url")
+        parser.add_argument("-i", "--interval", help="interval in MINUTES")
         parser.add_argument("-r", "--retries", help="Number of retries")
         parser.add_argument("-a", "--auth", help="Auth file")
-        parser.add_argument("-d", "--dl", help="Email distribution list")
-        parser.add_argument("-s", "--sites", help="Sites list")
+        parser.add_argument("-d", "--dl", help="Email distribution list file")
+        parser.add_argument("-s", "--sites", help="Sites list file")
         args = parser.parse_args()
-        if(args.test):
-            print("Running in test mode")
-            exit(0)
-        elif(args.version):
-            print("Running Twitter Bot Version %s"%(version))
-        elif(args.interval):
+        if(args.interval):
             print("Setting interval to: "+args.interval)
-            interval = int(args.interval)
+            interval = minToSec(int(args.interval))
         if(args.retries):
             retries = int(args.retries)
         if(args.auth):

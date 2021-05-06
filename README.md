@@ -3,6 +3,7 @@ Check status of websites. Send notification if down.
 
 ## Key features in this version:
 - Allows simple mode (provide a single URL as the only parameter)
+- Interval parameter must be provided as MINUTES
 - Supports Alert IDs -- whenever a site is unreachable, a random tracking ID is generated and referenced with each subsequent check. If the site becomes reachable, an 'All-clear' message is sent (and you can go back to bed)
 
 - Note that this requires the following configuration files to run:

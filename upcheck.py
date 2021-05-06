@@ -10,6 +10,7 @@ import json
 import email_alerts
 from func_timeout import func_timeout, FunctionTimedOut , func_set_timeout
 from datetime import datetime
+alert_ids = {}
 import argparse
 settings = {
     "version":"1.0.0",
@@ -39,7 +40,12 @@ def timestamp():
     return now.strftime("%d/%m/%Y %H:%M:%S")
 
 def getid():
-    return ''.join(random.SystemRandom().choice(string.ascii_uppercase + string.digits) for _ in range(6))
+    global alert_ids
+    while True:
+        id= 'D'+''.join(random.SystemRandom().choice(string.ascii_uppercase + string.digits) for _ in range(5))
+        if(id not in alert_ids): #make certain ids are unique
+            alert_ids[id] = True
+            return id
     # return uuid.uuid1().hex
 
 def minToSec(mins=1):
@@ -122,7 +128,12 @@ def check_site(site,retries = 1,email=False,auth_file=None,dl_file=None,sites_fi
             check_urls.append(format_url(site['url'],http,port)) #note: http is only added if it isn't already in the url.
     else:
         check_urls = [format_url(site['url'])] #if no ports specified then assume it's already a complete URL
-    for check_url in check_urls:
+    check_paths = [check_urls[0]] #set base path
+    if('paths' in site): #append all paths for all ports if specified
+        for path in site['paths']:
+            for url in check_urls:
+                check_paths.append(url+ path)
+    for check_url in check_paths:
         for attempt in range(1,retries+1):
             if(retries > 1): message = message + "\n[Connection Test]: Attempt %i of %i for URL: %s"%((attempt),retries,check_url)
             else:            message = message + "\n[Connection Test]: Attempt to connect to URL: %s"%(check_url)
@@ -146,8 +157,8 @@ def check_site(site,retries = 1,email=False,auth_file=None,dl_file=None,sites_fi
                 sleep(settings['retry_delay'])
     if(down):
         if(not issue): issue = getid()
-        subject = """[ALERT:{}] Site '{}' is down!""".format(issue,site['name'])
-        message = message+"""\n[ALERT:{}] Current time: {} """.format(issue,timestamp())
+        subject = """[{}] Site '{}' is down!""".format(issue,site['name'])
+        message = message+"""\n[{}] Current time: {} """.format(issue,timestamp())
         print("Sending alert for this site.")
         print("Message: ")
         print(message)
@@ -159,8 +170,9 @@ def check_site(site,retries = 1,email=False,auth_file=None,dl_file=None,sites_fi
         return issue
     else:
         if(issue):
-            subject = """ALL CLEAR! [ALERT:{}] Site '{}' is back up! [ALERT:{}] is closed.""".format(issue,site['name'],issue)
-            message = message + """\n Issue closed [ALERT:{}]""".format(issue)
+            subject = """CLOSED[{}] Site '{}' is back up! [{}] is closed.""".format(issue,site['name'],issue)
+            message = message + """\n Issue closed [{}]""".format(issue)
+            alert_ids[issue]=False 
             if(email): 
                 try:
                     send_alert(subject,message,auth_file,dl_file)

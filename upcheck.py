@@ -19,6 +19,15 @@ settings = {
     "retry_delay":60,
     "timeout":10
 }
+helptext = """Uptime check version 1.0.0 
+usage: upcheck.py [-h] [-i INTERVAL] [-r RETRIES] [-a AUTH] [-d DL] [-s SITES]
+    optional arguments:
+    -i INTERVAL, --interval INTERVAL interval in MINUTES
+    -r RETRIES, --retries RETRIES Number of retries
+    -a AUTH, --auth AUTH  Auth file
+    -d DL, --dl Email distribution list file
+    -s SITES, --sites SITES Sites list file
+    """
 
 def load_sites(sites_file="sites.json"):
     with open(sites_file,"r") as sf:
@@ -195,15 +204,7 @@ if(__name__=="__main__"):
         sites=[{"name":url,"url":url}]
         monitor(sites,None,1,False)
     elif(len(sys.argv)==1):
-        print("""Uptime check version 1.0.0 
-usage: upcheck.py [-h] [-i INTERVAL] [-r RETRIES] [-a AUTH] [-d DL] [-s SITES]
-    optional arguments:
-    -i INTERVAL, --interval INTERVAL interval in MINUTES
-    -r RETRIES, --retries RETRIES Number of retries
-    -a AUTH, --auth AUTH  Auth file
-    -d DL, --dl Email distribution list file
-    -s SITES, --sites SITES Sites list file
-    """)
+        print(helptext)
     else:
         print("Check site status.")
         parser = argparse.ArgumentParser(description="""Uptime check version {}""".format(settings['version']))

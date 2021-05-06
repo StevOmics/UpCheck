@@ -128,18 +128,18 @@ def url_down(url):
     url = url.lower()
     try:
         print("Trying: "+url)
-        res = request.urlopen(Request(url, headers={'User-Agent': ua}))#,context=ssl._create_unverified_context())
+        res = request.urlopen(Request(url, headers={'User-Agent': ua}),timeout=settings['timeout'])#,context=ssl._create_unverified_context())
         if(res.status == 200): return False
     except:
         url = url.replace("http","https")
         print("Trying secure URL: "+url)
         try:
-            res = request.urlopen(Request(url, headers={'User-Agent': ua}))#,context=ssl._create_unverified_context())
+            res = request.urlopen(Request(url, headers={'User-Agent': ua}),timeout=settings['timeout'])#,context=ssl._create_unverified_context())
             if(res.status == 200): return False
         except:
             try:
                 print("Trying again with unverified context")
-                res = request.urlopen(Request(url, headers={'User-Agent': ua}),context=ssl._create_unverified_context())
+                res = request.urlopen(Request(url, headers={'User-Agent': ua},timeout=settings['timeout']),context=ssl._create_unverified_context())
                 print("[WARNING] Certificate for this site is unverified and may not be secure. However, the site appears to be up.")
                 if(res.status == 200): return False
             except:
@@ -204,12 +204,14 @@ def check_site(site,retries = 1,email=False,auth_file=None,dl_file=None,sites_fi
     if(down):
         if(not issue): issue = getid()
         subject = """[{}] Site '{}' is down!""".format(issue,site['name'])
-        message = message+"""\n[{}] Current time: {} """.format(issue,timestamp())
+        message = message+"\nTracking ID has been assigned: [{}]".format(issue)
+        message = message+"\nCurrent time: {} ".format(timestamp())
         if(email): 
             try:
                 print("Sending alert for this site.")
                 send_alert(subject,message,auth_file,dl_file)
                 print(" * * * Alert Message * * *")
+                print("Subject: "+subject)
                 print(message)
                 print(" * * * Alert Message * * *")
             except FunctionTimedOut:

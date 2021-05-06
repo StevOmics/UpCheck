@@ -120,24 +120,33 @@ def url_down(url):
         # return res.status_code
         return True
 
+def get_all_paths(site):
+    paths = {}
+    if('ports' in site):
+        port_urls = []
+        for port in site['ports']:
+            if(port in ['443']): http = 'https' #secure ports https
+            else: http = 'http'
+            port_urls.append(format_url(site['url'],http,port)) #note: http is only added if it isn't already in the url.
+    else:
+        port_urls = [format_url(site['url'])] 
+    if('paths' in site): #append all paths for all ports if specified
+        sub_paths = site['paths']
+        sub_paths.append('/')
+    else:
+        sub_paths = ['/']
+    path_urls = []
+    for path in sub_paths:
+        for port_url in port_urls: #add each url already defined
+            if(path[0:1] != '/'): full_path = port_url+'/'+path
+            else: full_path = port_url+path
+            paths[full_path]=True
+    return paths.keys()
+
 def check_site(site,retries = 1,email=False,auth_file=None,dl_file=None,sites_file=None,issue=None):
     down = True   
-    message = "Alert for site: "+site['name']
-    # message = message + "\nAttempts for this site: "+str(retries)
-    if('ports' in site):
-        check_urls = []
-        for port in site['ports']:
-            if(port in ['443']): http = 'https'
-            else: http = 'http'
-            check_urls.append(format_url(site['url'],http,port)) #note: http is only added if it isn't already in the url.
-    else:
-        check_urls = [format_url(site['url'])] #if no ports specified then assume it's already a complete URL
-    check_paths = [check_urls[0]] #set base path
-    if('paths' in site): #append all paths for all ports if specified
-        for path in site['paths']:
-            for url in check_urls:
-                if('/' not in path): check_paths.append(url+'/'+path) #just in case paths are provided without leading /
-                else: check_paths.append(url+ path)
+    message = "Site: "+site['name']
+    check_paths = get_all_paths(site)
     for check_url in check_paths:
         for attempt in range(1,retries+1):
             if(retries > 1): message = message + "\n[Connection Test]: Attempt %i of %i for URL: %s"%((attempt),retries,check_url)

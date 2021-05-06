@@ -145,6 +145,7 @@ def get_all_paths(site):
 
 def check_site(site,retries = 1,email=False,auth_file=None,dl_file=None,sites_file=None,issue=None):
     down = True   
+    if('name' not in site): site['name'] = site['url']#default to URL here.
     message = "Site: "+site['name']
     check_paths = get_all_paths(site)
     for check_url in check_paths:
@@ -207,6 +208,7 @@ def monitor(site_list=None,interval=None,down_interval=None,retries=None,email=F
             check_site(site,retries,email,auth_file,dl_file)
     else: #run in interval mode if specified
         if(not down_interval): down_interval = interval/2 #If not specified, check twice as often if site is down 
+        if('name' not in site): site['name'] = site['url']#default to URL here
         print("Running in continuous mode.")
         try: #I'm including try/except blocks for all email alerts so that the program won't fail if it can't do email
             message = """UpCheck monitoring started at: {} \nThe following sites are being monitored: \n{}\nThis script will send alerts for any observed loss of connectivity.""".format(timestamp(),("\n".join([ "  "+str(i+1)+": "+site['name'] for i,site in enumerate(site_list)])))

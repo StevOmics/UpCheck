@@ -224,7 +224,6 @@ def monitor(site_list=None,interval=None,down_interval=None,retries=None,email=F
             print("Waiting for %i minutes until next check."%(secToMin(next_interval)))
             sleep(next_interval) 
 
-                
 if(__name__=="__main__"):
     interval = None
     down_interval = None

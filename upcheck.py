@@ -1,17 +1,25 @@
 import sys
+import argparse
+import json
+import re
 import requests
 import socket
 import uuid
 import random
 import string
-from icmplib import ping, multiping, traceroute, resolve, Host, Hop
-from time import sleep
-import json
-import email_alerts
-from func_timeout import func_timeout, FunctionTimedOut , func_set_timeout
+import ssl
+import http
 from datetime import datetime
+from time import sleep
+import urllib
+import urllib.request as request
+from urllib.request import Request, urlopen
+from func_timeout import func_timeout, FunctionTimedOut , func_set_timeout
+from icmplib import ping, multiping, traceroute, resolve, Host, Hop
+import email_alerts
+ua = "Mozilla Firefox Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:53.0) Gecko/20100101 Firefox/53.0" # the most common browser -- get past ua filters
+
 alert_ids = {}
-import argparse
 settings = {
     "version":"1.0.0",
     "auth_file":"env.json",
@@ -34,6 +42,8 @@ usage: upcheck.py [-h] [-i INTERVAL] [-r RETRIES] [-a AUTH] [-d DL] [-s SITES]
 def load_sites(sites_file="sites.json"):
     with open(sites_file,"r") as sf:
         site_list = json.load(sf)
+        for site in site_list:
+            if('name' not in site): site['name'] = site['url']#default to URL here
         return site_list
 
 def timestamp():
@@ -108,17 +118,34 @@ def ping_server(address): #requires sudo
         print(e)
         return False
 
-@func_set_timeout(30)
+def get_url(url):
+    req = Request(url, headers={'User-Agent': ua})
+    url= request.urlopen(req,context=ssl._create_unverified_context()).url
+    return url
+
+@func_set_timeout(60)
 def url_down(url):
-    res = requests.get(url,timeout=settings['timeout'])
-    if(res.status_code==200):
-        print("URL verified: "+url)
-        # return res.status_code
-        return False
-    else:
-        print("Something went wrong... "+res.status_code)
-        # return res.status_code
-        return True
+    url = url.lower()
+    try:
+        print("Trying: "+url)
+        res = request.urlopen(Request(url, headers={'User-Agent': ua}))#,context=ssl._create_unverified_context())
+        if(res.status == 200): return False
+    except:
+        url = url.replace("http","https")
+        print("Trying secure URL: "+url)
+        try:
+            res = request.urlopen(Request(url, headers={'User-Agent': ua}))#,context=ssl._create_unverified_context())
+            if(res.status == 200): return False
+        except:
+            try:
+                print("Trying again with unverified context")
+                res = request.urlopen(Request(url, headers={'User-Agent': ua}),context=ssl._create_unverified_context())
+                print("[WARNING] Certificate for this site is unverified and may not be secure. However, the site appears to be up.")
+                if(res.status == 200): return False
+            except:
+                print("Unable to connect to site.")
+                return True
+    return False
 
 def get_all_paths(site):
     paths = {}
@@ -145,7 +172,8 @@ def get_all_paths(site):
 
 def check_site(site,retries = 1,email=False,auth_file=None,dl_file=None,sites_file=None,issue=None):
     down = True   
-    if('name' not in site): site['name'] = site['url']#default to URL here.
+    if('name' not in site): site['name'] = site['url']#default to URL here--makes function more error tolerant
+    print(">>> Checking Site: %s <<<"%(site['name']))
     message = "Site: "+site['name']
     check_paths = get_all_paths(site)
     for check_url in check_paths:
@@ -154,8 +182,11 @@ def check_site(site,retries = 1,email=False,auth_file=None,dl_file=None,sites_fi
             else:            message = message + "\n[Connection Test]: Attempt to connect to URL: %s"%(check_url)
             try:
                 down = url_down(check_url)
-                message = message + "\n[Connection Test]: Connection successful."
-                break
+                if(not down): 
+                    message = message + "\n[Connection Test]: Connection successful."
+                    break
+                else:
+                    message = message + "\n[Connection Test]: Unable to connect."
             except FunctionTimedOut:
                 message = message + "\n[Error]: Connection timed out."
                 down = True
@@ -174,14 +205,16 @@ def check_site(site,retries = 1,email=False,auth_file=None,dl_file=None,sites_fi
         if(not issue): issue = getid()
         subject = """[{}] Site '{}' is down!""".format(issue,site['name'])
         message = message+"""\n[{}] Current time: {} """.format(issue,timestamp())
-        print("Sending alert for this site.")
-        print("Message: ")
-        print(message)
         if(email): 
             try:
+                print("Sending alert for this site.")
                 send_alert(subject,message,auth_file,dl_file)
+                print(" * * * Alert Message * * *")
+                print(message)
+                print(" * * * Alert Message * * *")
             except FunctionTimedOut:
                 print("Unable to send alert (timed out).")
+        print("========================================================")
         return issue
     else:
         if(issue):
@@ -193,6 +226,9 @@ def check_site(site,retries = 1,email=False,auth_file=None,dl_file=None,sites_fi
                     send_alert(subject,message,auth_file,dl_file)
                 except FunctionTimedOut:
                     print("Unable to send alert (timed out).")
+        else:
+            print ("[Connection Test]: Successfully connected to site: %s"%(site['name']))
+        print("========================================================")
         return None
 
 def monitor(site_list=None,interval=None,down_interval=None,retries=None,email=False,auth_file=None,dl_file=None):
@@ -208,7 +244,6 @@ def monitor(site_list=None,interval=None,down_interval=None,retries=None,email=F
             check_site(site,retries,email,auth_file,dl_file)
     else: #run in interval mode if specified
         if(not down_interval): down_interval = interval/2 #If not specified, check twice as often if site is down 
-        if('name' not in site): site['name'] = site['url']#default to URL here
         print("Running in continuous mode.")
         try: #I'm including try/except blocks for all email alerts so that the program won't fail if it can't do email
             message = """UpCheck monitoring started at: {} \nThe following sites are being monitored: \n{}\nThis script will send alerts for any observed loss of connectivity.""".format(timestamp(),("\n".join([ "  "+str(i+1)+": "+site['name'] for i,site in enumerate(site_list)])))

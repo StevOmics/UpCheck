@@ -19,7 +19,8 @@ Check status of websites. Send notification if down.
     {
         "name":"google",
         "url":"www.google.com",
-        "ports":["443","80"]
+        "ports":["443","80"],
+        "ports":["/search"]
     }
 ]
 ```

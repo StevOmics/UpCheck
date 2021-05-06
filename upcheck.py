@@ -18,7 +18,8 @@ settings = {
     "dl_file":"dl.json",
     "sites_file":"sites.json",
     "retry_delay":60,
-    "timeout":10
+    "timeout":10,
+    "default_interval":60
 }
 helptext = """Uptime check version 1.0.0 
 usage: upcheck.py [-h] [-i INTERVAL] [-r RETRIES] [-a AUTH] [-d DL] [-s SITES]
@@ -48,8 +49,11 @@ def getid():
             return id
     # return uuid.uuid1().hex
 
-def minToSec(mins=1):
+def minToSec(mins):
     return mins*60
+
+def secToMin(sec):
+    return int(sec)/60
 
 def format_url(url,http="http",port=None):
     url = url.lower()
@@ -132,7 +136,8 @@ def check_site(site,retries = 1,email=False,auth_file=None,dl_file=None,sites_fi
     if('paths' in site): #append all paths for all ports if specified
         for path in site['paths']:
             for url in check_urls:
-                check_paths.append(url+ path)
+                if('/' not in path): check_paths.append(url+'/'+path) #just in case paths are provided without leading /
+                else: check_paths.append(url+ path)
     for check_url in check_paths:
         for attempt in range(1,retries+1):
             if(retries > 1): message = message + "\n[Connection Test]: Attempt %i of %i for URL: %s"%((attempt),retries,check_url)
@@ -153,7 +158,7 @@ def check_site(site,retries = 1,email=False,auth_file=None,dl_file=None,sites_fi
                 down = True
             if(down and attempt < retries):
                 print(message)
-                print("Problem connecting to this site. Attempt %i of %i Waiting %i seconds to try again."%((attempt),retries,settings['retry_delay']))
+                print("Problem connecting to this site. Attempt %i of %i Waiting %i minutes to try again."%((attempt),retries,secToMin(settings['retry_delay'])))
                 sleep(settings['retry_delay'])
     if(down):
         if(not issue): issue = getid()
@@ -207,7 +212,7 @@ def monitor(site_list=None,interval=None,down_interval=None,retries=None,email=F
                 #and then provided as a parameter. When it is cleared, an all-clear message will be sent
                 site['issue'] = check_site(site=site,retries=retries,email=email,auth_file=auth_file,dl_file=dl_file,issue = site['issue'])
                 if(site['issue']): next_interval = down_interval
-            print("Waiting for %i seconds until next check."%(next_interval))
+            print("Waiting for %i minutes until next check."%(secToMin(next_interval)))
             sleep(next_interval) 
 
                 
@@ -216,12 +221,14 @@ if(__name__=="__main__"):
     down_interval = None
     retries = None
     if(len(sys.argv)==2):
-        print("Running in single-site mode.")
-        url = sys.argv[1]
-        sites=[{"name":url,"url":url}]
-        monitor(sites,None,1,False)
-    elif(len(sys.argv)==1):
-        print(helptext)
+        if(sys.argv[1]=='-h'):
+            print(helptext)
+            exit(0)
+        else:
+            print("Running in single-site mode.")
+            url = sys.argv[1]
+            sites=[{"name":url,"url":url}]
+            monitor(sites,None,1,False)
     else:
         print("Check site status.")
         parser = argparse.ArgumentParser(description="""Uptime check version {}""".format(settings['version']))
@@ -235,6 +242,8 @@ if(__name__=="__main__"):
         if(args.interval):
             print("Setting interval to: "+args.interval)
             interval = minToSec(int(args.interval))
+        else:
+            interval = minToSec(settings['default_interval'])
         if(args.down_interval):
             down_interval = minToSec(int(args.down_interval))
         if(args.retries):

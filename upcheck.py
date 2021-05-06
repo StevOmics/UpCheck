@@ -127,7 +127,7 @@ def get_all_paths(site):
         for port in site['ports']:
             if(port in ['443']): http = 'https' #secure ports https
             else: http = 'http'
-            port_urls.append(format_url(site['url'],http,port)) #note: http is only added if it isn't already in the url.
+            port_urls.append(format_url(site['url'],http,str(port))) #note: http is only added if it isn't already in the url.
     else:
         port_urls = [format_url(site['url'])] 
     if('paths' in site): #append all paths for all ports if specified

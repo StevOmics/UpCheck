@@ -159,7 +159,7 @@ def check_site(site,retries = 1,email=False,auth_file=None,dl_file=None,sites_fi
         return issue
     else:
         if(issue):
-            subject = """ALL CLEAR! [ALERT:{}] Site '{}' is back up! [ALERT:{}] is closed.""".format(issue,site['name'])
+            subject = """ALL CLEAR! [ALERT:{}] Site '{}' is back up! [ALERT:{}] is closed.""".format(issue,site['name'],issue)
             message = message + """\n Issue closed [ALERT:{}]""".format(issue)
             if(email): 
                 try:
@@ -168,14 +168,19 @@ def check_site(site,retries = 1,email=False,auth_file=None,dl_file=None,sites_fi
                     print("Unable to send alert (timed out).")
         return None
 
-def monitor(site_list=None,interval=None,retries=None,email=False,auth_file=None,dl_file=None):
+def monitor(site_list=None,interval=None,down_interval=None,retries=None,email=False,auth_file=None,dl_file=None):
     if(not auth_file): auth_file = settings['auth_file']
     if(not dl_file): dl_file = settings['dl_file']
     if(not site_list):  site_list = load_sites(settings['sites_file'])
     for site in site_list:
         site['issue'] = None
     if(not retries): retries = 1
-    if(interval):
+    if(not interval):
+        print("Running once.")
+        for site in site_list:
+            check_site(site,retries,email,auth_file,dl_file)
+    else: #run in interval mode if specified
+        if(not down_interval): down_interval = interval/2 #If not specified, check twice as often if site is down 
         print("Running in continuous mode.")
         try: #I'm including try/except blocks for all email alerts so that the program won't fail if it can't do email
             message = """UpCheck monitoring started at: {} \nThe following sites are being monitored: \n{}\nThis script will send alerts for any observed loss of connectivity.""".format(timestamp(),("\n".join([ "  "+str(i+1)+": "+site['name'] for i,site in enumerate(site_list)])))
@@ -184,19 +189,19 @@ def monitor(site_list=None,interval=None,retries=None,email=False,auth_file=None
         except FunctionTimedOut:
             print("Unable to send alert (timed out).")
         while(True):
+            next_interval = interval
             for site in site_list:
                 #note that if an issue is reported, the id will be generated, stored in the issue field
                 #and then provided as a parameter. When it is cleared, an all-clear message will be sent
                 site['issue'] = check_site(site=site,retries=retries,email=email,auth_file=auth_file,dl_file=dl_file,issue = site['issue'])
-            print("Waiting for %i seconds until next check."%(interval))
-            sleep(interval) 
-    else:
-        print("Running once.")
-        for site in site_list:
-            check_site(site,retries,email,auth_file,dl_file)
+                if(site['issue']): next_interval = down_interval
+            print("Waiting for %i seconds until next check."%(next_interval))
+            sleep(next_interval) 
+
                 
 if(__name__=="__main__"):
     interval = None
+    down_interval = None
     retries = None
     if(len(sys.argv)==2):
         print("Running in single-site mode.")
@@ -209,14 +214,17 @@ if(__name__=="__main__"):
         print("Check site status.")
         parser = argparse.ArgumentParser(description="""Uptime check version {}""".format(settings['version']))
         parser.add_argument("-i", "--interval", help="interval in MINUTES")
+        parser.add_argument("-d", "--down-interval", help="down-interval in MINUTES--a shorter check interval for when a site is down")
         parser.add_argument("-r", "--retries", help="Number of retries")
         parser.add_argument("-a", "--auth", help="Auth file")
-        parser.add_argument("-d", "--dl", help="Email distribution list file")
+        parser.add_argument("-l", "--dl", help="Email distribution list file")
         parser.add_argument("-s", "--sites", help="Sites list file")
         args = parser.parse_args()
         if(args.interval):
             print("Setting interval to: "+args.interval)
             interval = minToSec(int(args.interval))
+        if(args.down_interval):
+            down_interval = minToSec(int(args.down_interval))
         if(args.retries):
             retries = int(args.retries)
         if(args.auth):
@@ -232,4 +240,4 @@ if(__name__=="__main__"):
         else:
             sites_file=settings['sites_file']
         site_list = load_sites(sites_file)
-        monitor(site_list=site_list,interval=interval,retries=retries,email=True,auth_file=auth_file,dl_file=dl_file)
+        monitor(site_list=site_list,interval=interval,down_interval = down_interval,retries=retries,email=True,auth_file=auth_file,dl_file=dl_file)

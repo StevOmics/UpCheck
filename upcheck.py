@@ -1,3 +1,5 @@
+#!/usr/bin/python
+#dependencies managed with virtualenv, so this script may not work if run outside of env
 import sys
 import argparse
 import json
@@ -11,11 +13,14 @@ import ssl
 import http
 from datetime import datetime
 from time import sleep
-import urllib
-import urllib.request as request
-from urllib.request import Request, urlopen
+try:
+    import urllib2
+except:
+    #python3
+    import urllib.request as urllib2 
+from requests import Request
 from func_timeout import func_timeout, FunctionTimedOut , func_set_timeout
-from icmplib import ping, multiping, traceroute, resolve, Host, Hop
+# from icmplib import ping, multiping, traceroute, resolve, Host, Hop
 import email_alerts
 ua = "Mozilla Firefox Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:53.0) Gecko/20100101 Firefox/53.0" # the most common browser -- get past ua filters
 
@@ -88,60 +93,62 @@ def send_alert(subject,message,auth_file="env.json",dl_file="dl.json"):
                     print("Sending mail to %s failed."%(contact['name']))
                     print(e)
 
-def socket_connection(server, port=None, timeout=settings['timeout']):
-    print("Pinging server "+server)
-    if(not port):
-        url_split = server.split(':')
-        if(len(url_split)==3):
-            server=url_split[0]+url_split[1]
-            port = int(url_split[2])
-        elif(len(url_split)==2):
-            server = url_split[0]
-            port = int(url_split[1])
-        else:
-            port = 80
-    try:
-        socket.setdefaulttimeout(timeout)
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.connect((server, port))
-        s.close()
-    except OSError as error:
-        return False
-    else:
-        return True
-
-def ping_server(address): #requires sudo
-    try:
-        ping(address)
-        True
-    except Exception as e:
-        print(e)
-        return False
-
 def get_url(url):
     req = Request(url, headers={'User-Agent': ua})
     url= request.urlopen(req,context=ssl._create_unverified_context()).url
     return url
 
+
+def code_is_ok(code):
+    if( int(code) < 400): return True
+    if(int(code) in [401,402]): return True
+
+#NOTE: Function was updated to work with urllib2:
 @func_set_timeout(60)
 def url_down(url):
     url = url.lower()
     try:
         print("Trying: "+url)
-        res = request.urlopen(Request(url, headers={'User-Agent': ua}),timeout=settings['timeout'])#,context=ssl._create_unverified_context())
-        if(res.status == 200): return False
+        res = urllib2.urlopen(url)#,context=ssl._create_unverified_context())
+        res.read()
+        code = res.getcode()
+        if(code_is_ok(code)): return False
+        else:
+            print("code: "+str(code))
+            return True
     except:
-        url = url.replace("http","https")
+        if("https" not in url): 
+            url = url.replace("http","https")
         print("Trying secure URL: "+url)
         try:
-            res = request.urlopen(Request(url, headers={'User-Agent': ua}),timeout=settings['timeout'])#,context=ssl._create_unverified_context())
-            if(res.status == 200): return False
+            res = urllib2.urlopen(url)#,context=ssl._create_unverified_context())
+            res.read()
+            code = res.getcode()
+            if(code_is_ok(code)): return False
+            else:
+                print("code: "+str(code))
+                return True        
         except:
             try:
                 print("Trying again with unverified context")
-                res = request.urlopen(Request(url, headers={'User-Agent': ua},timeout=settings['timeout']),context=ssl._create_unverified_context())
-                print("[WARNING] Certificate for this site is unverified and may not be secure. However, the site appears to be up.")
-                if(res.status == 200): return False
+                # url = "https://www.google.com"
+                res = urllib2.urlopen(url, context=ssl._create_unverified_context())
+                res.read()
+                print(res)
+                # res = urllib2.urlopen(Request(url, headers={'User-Agent': ua},timeout=settings['timeout']),context=ssl._create_unverified_context())
+                code = res.getcode()
+                print("code: "+str(code))
+                if(code_is_ok(code)): 
+                    print("[WARNING] Certificate for this site is unverified and may not be secure. However, the site appears to be up.")
+                    return False
+                else:
+                    print("code: "+str(code))
+                    return True
+            except urllib2.HTTPError as e:
+                if(code_is_ok(e.code)): return False
+                else:
+                    print(e) 
+                    return True
             except:
                 print("Unable to connect to site.")
                 return True

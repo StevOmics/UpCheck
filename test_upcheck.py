@@ -94,7 +94,7 @@ class Full(unittest.TestCase):
         print(">>> Testing good sites <<<")
         upcheck.monitor(site_list = good_sites)
         print(">>> Testing bad sites <<<")
-        upcheck.monitor(site_list = bad_sites, interval=30,email=True)
+        upcheck.monitor(site_list = bad_sites)#, interval=30,email=True)
 
 def run_selected_tests():
     suite = unittest.TestSuite()
